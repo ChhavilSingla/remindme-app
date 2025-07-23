@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RemindMe - Task Reminder App</title>
+  <meta name="theme-color" content="#4a6cf7" />
+  <link rel="manifest" href="/remindme-app/manifest.webmanifest" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Poppins', sans-serif; background-color: #f8f9fa; }
+    .reminder-item { transition: all 0.3s ease; }
+    .reminder-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .completed { opacity: 0.6; text-decoration: line-through; background-color: #f0f0f0; }
+    .form-container {
+      background: linear-gradient(135deg, #6e8efb 0%, #4a6cf7 100%);
+      box-shadow: 0 10px 20px rgba(74, 108, 247, 0.2);
+    }
+    .countdown { font-feature-settings: "tnum"; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 pb-16">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <header class="text-center mb-10">
+      <img src="/remindme-app/icon-192.png" alt="RemindMe app logo" class="mx-auto w-24 h-24 object-cover rounded-full shadow-md mb-4" />
+      <h1 class="text-4xl font-bold text-gray-800 mb-2">RemindMe</h1>
+      <p class="text-gray-600">Never miss important tasks again</p>
+    </header>
+    <div class="form-container rounded-xl p-6 mb-8 text-white">
+      <h2 class="text-xl font-semibold mb-4">Add New Reminder</h2>
+      <form id="reminderForm" class="space-y-4">
+        <div>
+          <label for="task" class="block mb-1 font-medium">Task Description</label>
+          <input type="text" id="task" placeholder="What do you want to be reminded about?"
+            class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 text-white placeholder-white placeholder-opacity-70"/>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="date" class="block mb-1 font-medium">Date</label>
+            <input type="date" id="date"
+              class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 text-white"/>
+          </div>
+          <div>
+            <label for="time" class="block mb-1 font-medium">Time</label>
+            <input type="time" id="time"
+              class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 text-white"/>
+          </div>
+        </div>
+        <button type="submit"
+          class="w-full bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-opacity-90 transition duration-200 shadow-md">
+          Set Reminder
+        </button>
+      </form>
+    </div>
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-800">Your Reminders</h2>
+        <p class="text-sm text-gray-500 mt-1" id="reminderCount">0 reminders</p>
+      </div>
+      <div id="remindersList" class="divide-y divide-gray-100">
+        <div class="py-6 px-6 text-center text-gray-500">
+          <p>No reminders yet. Add one above!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const form = document.getElementById('reminderForm');
+      const remindersList = document.getElementById('remindersList');
+      const reminderCount = document.getElementById('reminderCount');
+      let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+      updateRemindersList();
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const task = document.getElementById('task').value.trim();
+        const date = document.getElementById('date').value;
+        const time = document.getElementById('time').value;
+        if (!task || !date || !time) return showToast('Please fill in all fields', 'error');
+        const datetime = new Date(`${date}T${time}`);
+        if (datetime < new Date()) return showToast('Please select a future date/time', 'warning');
+
+        reminders.push({ id: Date.now(), task, datetime: datetime.toISOString(), completed: false });
+        saveReminders();
+        updateRemindersList();
+        form.reset();
+      });
+
+      function updateRemindersList() {
+        if (!reminders.length) {
+          remindersList.innerHTML = '<div class="py-6 px-6 text-center text-gray-500"><p>No reminders yet. Add one above!</p></div>';
+          reminderCount.textContent = '0 reminders';
+          return;
+        }
+        reminders.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+        const now = new Date();
+        let html = reminders.map(reminder => {
+          const date = new Date(reminder.datetime);
+          const timeRemaining = date - now;
+          const timeFormatted = date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const timeRemainingText = timeRemaining > 0
+            ? `<span class="text-sm font-medium text-gray-500 countdown">${Math.floor(timeRemaining / (1000 * 60 * 60 * 24))}d ${Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))}h ${Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))}m remaining</span>`
+            : `<span class="text-sm font-medium text-red-500">Time is up!</span>`;
+          return `
+            <div class="reminder-item px-6 py-4 ${reminder.completed ? 'completed' : ''}" data-id="${reminder.id}">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center">
+                    <input type="checkbox" ${reminder.completed ? 'checked' : ''} class="mr-3 w-5 h-5 reminder-checkbox cursor-pointer" />
+                    <div>
+                      <h3 class="font-medium text-gray-800">${reminder.task}</h3>
+                      <p class="text-sm text-gray-500">${timeFormatted}</p>
+                      ${timeRemainingText}
+                    </div>
+                  </div>
+                </div>
+                <button class="delete-btn text-gray-400 hover:text-red-500 transition" aria-label="Delete reminder">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+        remindersList.innerHTML = html;
+        reminderCount.textContent = `${reminders.length} reminder${reminders.length > 1 ? 's' : ''}`;
+        document.querySelectorAll('.reminder-checkbox').forEach(cb => cb.addEventListener('change', function () {
+          const id = +this.closest('.reminder-item').dataset.id;
+          const r = reminders.find(r => r.id === id);
+          r.completed = this.checked;
+          saveReminders();
+          updateRemindersList();
+        }));
+        document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', function () {
+          const id = +this.closest('.reminder-item').dataset.id;
+          reminders = reminders.filter(r => r.id !== id);
+          saveReminders();
+          updateRemindersList();
+        }));
+      }
+
+      function saveReminders() {
+        localStorage.setItem('reminders', JSON.stringify(reminders));
+      }
+
+      function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white ${
+          type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      function showNotification(message) {
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification('Reminder', { body: message, icon: '/remindme-app/notification-icon.png' });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification('Reminder', { body: message });
+              }
+            });
+          }
+        }
+      }
+
+      setInterval(() => {
+        const now = new Date();
+        reminders.forEach(r => {
+          if (!r.completed && new Date(r.datetime) <= now) {
+            showNotification(r.task);
+            showToast(`Reminder: ${r.task}`, 'reminder');
+          }
+        });
+      }, 60000);
+    });
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/remindme-app/sw.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

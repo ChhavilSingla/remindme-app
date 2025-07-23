@@ -1,0 +1,21 @@
+
+{
+  "name": "RemindMe",
+  "short_name": "RemindMe",
+  "start_url": "/remindme-app/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a6cf7",
+  "icons": [
+    {
+      "src": "/remindme-app/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/remindme-app/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
